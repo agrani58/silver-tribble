@@ -9,7 +9,7 @@ account_mapping = {
 }
 
 # Path to the original Excel file
-file_path = r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls";
+file_path = r"C:\Users\agran\Downloads\Everest Bank - Statement.xls";
 
 # -------------------------
 def process_bank_table(file_path, account_mapping):
@@ -47,7 +47,7 @@ def process_bank_table(file_path, account_mapping):
     bank_abbr = account_mapping[account_number_found]
     
     # -------------------------
-    # Find last valid row in Date column (end of actual table)
+    # Find last valid row in Date column 
     last_table_row_idx = header_row_idx
     for i in range(header_row_idx + 1, len(df)):
         val = df.iat[i, date_col_idx]
@@ -85,19 +85,18 @@ def process_bank_table(file_path, account_mapping):
             continue
 
     # -------------------------
-    # Save new file
+
     folder, filename = os.path.split(file_path)
     new_filename = f"{bank_abbr}_statement_{first_date_str}_modified.xlsx"
     new_path = os.path.join(folder, new_filename)
 
-    # Save to Excel
+
     df.to_excel(new_path, index=False, header=False)
 
     # Confirmation message
-    print(f"💾 Saved modified table as: {new_filename}")
+    print(f"Saved modified table as: {new_filename}")
     return new_path
 
  
-# -------------------------
-# Call the function
+
 process_bank_table(file_path, account_mapping)
