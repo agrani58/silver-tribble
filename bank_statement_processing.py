@@ -1,10 +1,24 @@
 import pandas as pd
 import os
 
-def process_bank_table(file_path, account_number, bank_abbr):
-    # Read everything as raw data
+# -------------------------
+# Mapping of account numbers to bank abbreviations
+account_mapping = {
+    "480100000373201": "abbs",
+    "00200105201324": "EBL",
+}
+
+# Path to the original Excel file
+file_path = r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls";
+
+# -------------------------
+def process_bank_table(file_path, account_mapping):
+
+    # Read all rows as raw data
     df = pd.read_excel(file_path, header=None)
-    
+    df = df.astype(object)
+
+    # -------------------------
     # Find header row containing 'Date' or 'ID'
     header_row_idx = None
     date_col_idx = None
@@ -14,29 +28,53 @@ def process_bank_table(file_path, account_number, bank_abbr):
             header_row_idx = matches.index[0]
             date_col_idx = col
             break
-    
     if header_row_idx is None:
         raise ValueError("Could not find 'Date' or 'ID' in the sheet!")
     
-    # Determine actual last column of the table
-    last_col_idx = df.iloc[header_row_idx].last_valid_index()
-    
-    # Insert new columns at the end of the table
-    df.insert(last_col_idx + 1, 'Account Number', ['' for _ in range(len(df))])
-    df.insert(last_col_idx + 2, 'Bank Code', ['' for _ in range(len(df))])
-    
-    # Fill values below header
+    # -------------------------
+    # Detect account number in the table
+    account_number_found = None
     for i in range(header_row_idx + 1, len(df)):
-        df.iat[i, last_col_idx + 1] = account_number
-        df.iat[i, last_col_idx + 2] = bank_abbr
+        for acc_num in account_mapping:
+            if str(acc_num) in str(df.iloc[i].values):
+                account_number_found = str(acc_num)
+                break
+        if account_number_found:
+            break
+    if account_number_found is None:
+        raise ValueError("Account number not found in mapping or table!")
     
-    # Set header names
-    df.iat[header_row_idx, last_col_idx + 1] = 'Account Number'
-    df.iat[header_row_idx, last_col_idx + 2] = 'Bank Code'
+    bank_abbr = account_mapping[account_number_found]
     
+    # -------------------------
+    # Find last valid row in Date column (end of actual table)
+    last_table_row_idx = header_row_idx
+    for i in range(header_row_idx + 1, len(df)):
+        val = df.iat[i, date_col_idx]
+        try:
+            parsed = pd.to_datetime(val, errors='coerce')
+            if not pd.isna(parsed):
+                last_table_row_idx = i
+        except:
+            continue
+
+    # -------------------------
+    # Fill each table row individually to avoid gaps
+    for i in range(header_row_idx + 1, last_table_row_idx + 1):
+        last_col = df.iloc[i, :].last_valid_index()
+        df.iat[i, last_col + 1] = account_number_found
+        df.iat[i, last_col + 2] = bank_abbr
+
+    # -------------------------
+    # Set header names right after the last non-empty column of header
+    header_last_col = df.iloc[header_row_idx, :].last_valid_index()
+    df.iat[header_row_idx, header_last_col + 1] = "Account Number"
+    df.iat[header_row_idx, header_last_col + 2] = "Bank Code"
+    
+    # -------------------------
     # Grab first valid date for filename
     first_date_str = "nodate"
-    for i in range(header_row_idx + 1, len(df)):
+    for i in range(header_row_idx + 1, last_table_row_idx + 1):
         val = df.iat[i, date_col_idx]
         try:
             parsed = pd.to_datetime(val, errors='coerce')
@@ -45,23 +83,22 @@ def process_bank_table(file_path, account_number, bank_abbr):
                 break
         except:
             continue
-    
-    # Save file
+
+    # -------------------------
+    # Save new file
     folder, filename = os.path.split(file_path)
     new_filename = f"{bank_abbr}_statement_{first_date_str}_modified.xlsx"
     new_path = os.path.join(folder, new_filename)
+
+    # Delete old file if exists (avoid permission issues)
+    if os.path.exists(new_path):
+        os.remove(new_path)
+
     df.to_excel(new_path, index=False, header=False)
     
     print(f"💾 Saved modified table as: {new_filename}")
     return new_path
 
-
-bank_files = [
-    {"file": r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls", "account": "111111111", "abbr": "CBIL"},
-    {"file": r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls", "account": "111111111", "abbr": "CBIL"},
-    {"file": r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls", "account": "111111111", "abbr": "CBIL"},
-    {"file": r"C:\Users\agran\Downloads\Citizen Bank - Statement.xls", "account": "111111111", "abbr": "CBIL"},
-]
-
-for bf in bank_files:
-    process_bank_table(bf['file'], bf['account'], bf['abbr'])
+# -------------------------
+# Call the function
+process_bank_table(file_path, account_mapping)
