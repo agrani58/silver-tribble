@@ -4,7 +4,7 @@ import os
 # -------------------------
 # Mapping of account numbers to bank abbreviations
 account_mapping = {
-    "480100000373201": "abbs",
+    "480100000373201": "CBIL",
     "00200105201324": "EBL",
 }
 
@@ -90,15 +90,14 @@ def process_bank_table(file_path, account_mapping):
     new_filename = f"{bank_abbr}_statement_{first_date_str}_modified.xlsx"
     new_path = os.path.join(folder, new_filename)
 
-    # Delete old file if exists (avoid permission issues)
-    if os.path.exists(new_path):
-        os.remove(new_path)
-
+    # Save to Excel
     df.to_excel(new_path, index=False, header=False)
-    
+
+    # Confirmation message
     print(f"💾 Saved modified table as: {new_filename}")
     return new_path
 
+ 
 # -------------------------
 # Call the function
 process_bank_table(file_path, account_mapping)
